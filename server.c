@@ -16,6 +16,8 @@
 /* Setuid to nobody - 65534 is nobody on Linux Mint */
 #define SETUID_NUM 65534 
 
+#define BUFFER_SIZE 1024
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +35,25 @@
 
 #include <arpa/inet.h>
 
+void my_strlcpy(char *dest, const char *src, int len)
+{
+	int i;
+
+	for (i = 0; i < len - 1; i++) {
+		dest[i] = src[i];
+
+		if (src[i] == '\0')
+			break;
+	}
+
+	dest[i] = '\0';
+
+	return;
+
+	/* NB: if you return the strlen(src), on unterminated src fields, it could overrun */
+	/* We don't return strlen(src), cause we want to take extra precautions against unterminated src fields, and we don't care about truncation. */
+}
+
 char *strip_newline(char *s)
 {
 	char *p = strpbrk(s, "\r\n");
@@ -43,7 +64,7 @@ char *strip_newline(char *s)
 void child(int fd)
 {
 	FILE *fp_in, *fp_out;
-	char buf[1024];
+	char buf[BUFFER_SIZE];
 	int received_get_request_for_index_html = 0;
 	FILE *fp;
 
@@ -59,16 +80,23 @@ void child(int fd)
 		strip_newline(buf);
 		printf("Received: %s\n", buf);
 		{
-			char *t = strtok(buf, " ");
+			char *t = strtok(buf, " "); /* strtok 1st time */
+
 			if (t && (strcmp(t, "GET") == 0)) {
 				printf("Found GET!\n");
-				t = strtok(NULL, " ");
-				if (t && ((t[0] == '/') || (strncmp(t, "/index.htm", strlen("/index.htm")) == 0))) {
-					printf("Found / or /index.htm\n");
-					t = strtok(NULL, " ");
-					if (t && (strcmp(t, "HTTP/1.1") == 0)) {
-						printf("Found HTTP/1.1\n");
-						received_get_request_for_index_html = 1;
+				t = strtok(NULL, " "); /* strtok 2nd time */
+				if (t) {
+					char d[BUFFER_SIZE], *p;
+					/* need a copy of 't' so that we can eliminate the question mark and compare, without altering the token 't' in strtok */
+					my_strlcpy(d, t, sizeof(d)); /* should be safe regardless, since we're using the same buffer sizes */
+					p = strchr(d, '?');
+					if (p) *p = '\0';
+					if ((strcmp(d, "/") == 0) || (strcmp(d, "/index.htm") == 0) || (strcmp(d, "/index.html") == 0)) {
+						t = strtok(NULL, " "); /* strtok 3rd time */
+						if (t && (strcmp(t, "HTTP/1.1") == 0)) {
+							printf("Found HTTP/1.1\n");
+							received_get_request_for_index_html = 1;
+						}
 					}
 				}
 			}
