@@ -38,7 +38,7 @@ char *strip_newline(char *s)
 {
 	char *p = strpbrk(s, "\r\n");
 	if (p) *p = '\0';
-	return p;
+	return s;
 }
 
 void child(int fd)
