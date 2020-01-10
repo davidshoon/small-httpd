@@ -142,6 +142,12 @@ int main(int argc, char **argv)
 		fd = accept(server_fd, (void *) &server, &r);
 		if (fd < 0) { perror("accept"); exit(1); }
 
+		printf("Connected IP: %d.%d.%d.%d\n", 
+			server.sin_addr.s_addr & 0x000000ff, 
+			(server.sin_addr.s_addr & 0x0000ff00) >> 8, 
+			(server.sin_addr.s_addr & 0x00ff0000) >> 16, 
+			(server.sin_addr.s_addr & 0xff000000) >> 24 );
+
 		pid = fork();
 		if (pid < 0) { perror("fork"); exit(1); }
 
