@@ -1,5 +1,4 @@
 /* 
-
 	Small HTTP daemon. 
 
 	Based off "Example TCP server" in "icebox/originals"
@@ -56,13 +55,29 @@ void child(int fd)
 		return;
 	}
 
+	if (fgets(buf, sizeof(buf), fp_in)) {
+		strip_newline(buf);
+		printf("Received: %s\n", buf);
+		{
+			char *t = strtok(buf, " ");
+			if (t && (strcmp(t, "GET") == 0)) {
+				printf("Found GET!\n");
+				t = strtok(NULL, " ");
+				if (t && ((t[0] == '/') || (strncmp(t, "/index.htm", strlen("/index.htm")) == 0))) {
+					printf("Found / or /index.htm\n");
+					t = strtok(NULL, " ");
+					if (t && (strcmp(t, "HTTP/1.1") == 0)) {
+						printf("Found HTTP/1.1\n");
+						received_get_request_for_index_html = 1;
+					}
+				}
+			}
+		}
+	}
+
 	while (fgets(buf, sizeof(buf), fp_in)) {
 		strip_newline(buf);
 		printf("Received: %s\n", buf);
-
-		if (strcmp(buf, "GET / HTTP/1.1") == 0) {
-			received_get_request_for_index_html = 1;
-		}
 
 		if (strlen(buf) == 0)
 			break;
