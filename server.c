@@ -93,8 +93,14 @@ void child(int fd)
 					if (p) *p = '\0';
 					if ((strcmp(d, "/") == 0) || (strcmp(d, "/index.htm") == 0) || (strcmp(d, "/index.html") == 0)) {
 						t = strtok(NULL, " "); /* strtok 3rd time */
-						if (t && (strcmp(t, "HTTP/1.1") == 0)) {
-							printf("Found HTTP/1.1\n");
+						if (t && 
+							(
+								(strcmp(t, "HTTP/1.1") == 0) 
+							|| 
+								(strcmp(t, "HTTP/1.0") == 0)
+							)
+						) {
+							printf("Found HTTP request for index.html\n");
 							received_get_request_for_index_html = 1;
 						}
 					}
