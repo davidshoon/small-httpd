@@ -13,8 +13,8 @@
 /* Set chroot to current directory, otherwise must chdir() to directory as well (not done) */
 #define CHROOT_DIR "."
 
-/* Setuid to nobody - 65534 is nobody on Linux Mint */
-#define SETUID_NUM 65534 
+/* Setuid to nobody */
+#define SETUID_TO_USER "nobody"
 
 #define BUFFER_SIZE 1024
 
@@ -34,6 +34,9 @@
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
+
+#include <pwd.h>
+#include <errno.h>
 
 void my_strlcpy(char *dest, const char *src, int len)
 {
@@ -155,9 +158,17 @@ int main(int argc, char **argv)
 	struct sockaddr_in server;
 	pid_t pid;
 	int port;
+	struct passwd *p_pwd;
 
 	if (argc < 2) {
 		printf("Syntax: <listen port>\n");
+		exit(1);
+	}
+
+	errno = 0;
+	p_pwd = getpwnam(SETUID_TO_USER);
+	if (!p_pwd) {
+		perror("getpwnam");
 		exit(1);
 	}
 
@@ -184,7 +195,7 @@ int main(int argc, char **argv)
 
 	if (listen(server_fd, 5) < 0) { perror("listen"); exit(1); }
 
-	if (setuid(SETUID_NUM) < 0) { perror("setuid"); exit(1); }
+	if (setuid(p_pwd->pw_uid) < 0) { perror("setuid"); exit(1); }
 
 	while (1) {
 		r = sizeof(server);
