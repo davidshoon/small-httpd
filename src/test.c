@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 {
 	int server_fd;
 	int fd;
-	int r, x;
+	int x;
 	struct sockaddr_in server;
 	pid_t pid;
 	int port;
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 	if (server_fd < 0) { perror("socket"); exit(1); }
 
 	x = 1;
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &r, sizeof(r)) < 0) {
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x)) < 0) {
 		perror("setsockopt");
 		exit(1);
 	}
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 	if (setuid(p_pwd->pw_uid) < 0) { perror("setuid"); exit(1); }
 
 	while (1) {
-		r = sizeof(server);
+		socklen_t r = sizeof(server);
 		fd = accept(server_fd, (void *) &server, &r);
 		if (fd < 0) { perror("accept"); exit(1); }
 
