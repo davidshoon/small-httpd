@@ -297,7 +297,11 @@ int main(int argc, char **argv)
 	while (1) {
 		socklen_t r = sizeof(server);
 		fd = accept(server_fd, (void *) &server, &r);
-		if (fd < 0) { perror("accept"); exit(1); }
+		if (fd < 0) {
+			perror("accept");
+			LOG("Attempted Connection from IP: %s [%s]\n", inet_ntoa(server.sin_addr), strip_newline(ctime(&now)));
+			continue;
+		}
 
 		now = time(NULL);
 		LOG("Connected IP: %s [%s]\n", inet_ntoa(server.sin_addr), strip_newline(ctime(&now)));
