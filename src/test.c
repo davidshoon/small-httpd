@@ -48,7 +48,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include <time.h>
 
@@ -163,7 +162,9 @@ void child(int fd)
 						received_get_request_for_target_file = 1;
 					}
 
-					for (int i = 1; i < second_pass_splits; i++) {
+					int i;
+
+					for (i = 1; i < second_pass_splits; i++) {
 						LOGINFO("Second pass split[%d]: ?%s\n", i, second_pass[i].str);	// we include the question mark -- to show that it was a URL parameter, since split() removes delimiters.
 					}
 				}
