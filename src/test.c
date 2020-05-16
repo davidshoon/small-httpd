@@ -18,6 +18,8 @@
 
 #define BUFFER_SIZE 1024
 
+// #define NO_FORK
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,6 +77,7 @@ void child(int fd)
 	int received_get_request_for_index_html = 0;
 	FILE *fp;
 	char target_file[BUFFER_SIZE];
+	int received_get_request_for_target_file = 0;
 
 	fp_in = fdopen(fd, "r");
 	fp_out = fdopen(fd, "w");
@@ -117,6 +120,7 @@ void child(int fd)
 						if (p) *p = '\0';
 						my_strlcpy(target_file, d, sizeof(target_file));
 						printf("Requesting file: %s\n", target_file);
+						received_get_request_for_target_file = 1;
 					}
 				}
 			}
@@ -154,7 +158,7 @@ void child(int fd)
 			fclose(fp);
 		}
 	}
-	else {
+	else if (received_get_request_for_target_file) {
 		fp = fopen(target_file, "rb");
 		if (!fp) {
 			fprintf(fp_out, "HTTP/1.1 404 Not Found\n");
@@ -249,6 +253,7 @@ int main(int argc, char **argv)
 
 		printf("Connected IP: %s\n", inet_ntoa(server.sin_addr));
 
+#ifndef NO_FORK
 		pid = fork();
 		if (pid < 0) { perror("fork"); exit(1); }
 
@@ -263,5 +268,10 @@ int main(int argc, char **argv)
 			// clear up all the children.
 			while (waitpid(-1, NULL, WNOHANG) > 0) ;
 		}
+#else
+		child(fd);
+#endif
+
+		fflush(stdout);
 	}
 }
