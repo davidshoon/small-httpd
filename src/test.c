@@ -142,30 +142,30 @@ void child(int fd)
 			if (first_pass_splits == 3) {
 				if (strcmp(first_pass[0].str, "GET") == 0) {
 					printf("Found GET!\n");
-				}
 
-				struct split_string second_pass[MAX_SPLITS];
-				int second_pass_splits = split(first_pass[1].str, "?", second_pass, MAX_SPLITS);
+					struct split_string second_pass[MAX_SPLITS];
+					int second_pass_splits = split(first_pass[1].str, "?", second_pass, MAX_SPLITS);
 
-				LOGINFO("Second pass: Splits = %d\n", second_pass_splits);
+					LOGINFO("Second pass: Splits = %d\n", second_pass_splits);
 
-				if (second_pass_splits > 0) {
-					if ((strcmp(second_pass[0].str, "/") == 0) || (strcmp(second_pass[0].str, "/index.htm") == 0) || (strcmp(second_pass[0].str, "/index.html") == 0)) {
-						if ((strcmp(first_pass[2].str, "HTTP/1.1") == 0) || (strcmp(first_pass[2].str, "HTTP/1.0") == 0)) {
-							LOG("Found HTTP request for index.html\n");
-							received_get_request_for_index_html = 1;
+					if (second_pass_splits > 0) {
+						if ((strcmp(second_pass[0].str, "/") == 0) || (strcmp(second_pass[0].str, "/index.htm") == 0) || (strcmp(second_pass[0].str, "/index.html") == 0)) {
+							if ((strcmp(first_pass[2].str, "HTTP/1.1") == 0) || (strcmp(first_pass[2].str, "HTTP/1.0") == 0)) {
+								LOG("Found HTTP request for index.html\n");
+								received_get_request_for_index_html = 1;
+							}
 						}
-					}
-					else {
-						my_strlcpy(target_file, second_pass[0].str, sizeof(target_file));
-						LOG("Requesting file: %s\n", target_file);
-						received_get_request_for_target_file = 1;
-					}
+						else {
+							my_strlcpy(target_file, second_pass[0].str, sizeof(target_file));
+							LOG("Requesting file: %s\n", target_file);
+							received_get_request_for_target_file = 1;
+						}
 
-					int i;
+						int i;
 
-					for (i = 1; i < second_pass_splits; i++) {
-						LOGINFO("Second pass split[%d]: ?%s\n", i, second_pass[i].str);	// we include the question mark -- to show that it was a URL parameter, since split() removes delimiters.
+						for (i = 1; i < second_pass_splits; i++) {
+							LOGINFO("Second pass split[%d]: ?%s\n", i, second_pass[i].str);	// we include the question mark -- to show that it was a URL parameter, since split() removes delimiters.
+						}
 					}
 				}
 			}
