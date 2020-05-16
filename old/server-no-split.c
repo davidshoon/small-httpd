@@ -18,12 +18,6 @@
 
 #define BUFFER_SIZE 1024
 
-#define MAX_SPLITS 100
-
-#define LOGERR(x, ...) printf("ERROR: " x, ##__VA_ARGS__)
-#define LOGINFO(x, ...) printf("INFO: " x, ##__VA_ARGS__)
-#define LOG printf
-
 // #define NO_FORK
 
 #include <stdio.h>
@@ -50,13 +44,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <time.h>
-
-struct split_string
-{
-	char str[BUFFER_SIZE];
-};
-
 void my_strlcpy(char *dest, const char *src, int len)
 {
 	int i;
@@ -75,37 +62,6 @@ void my_strlcpy(char *dest, const char *src, int len)
 	/* NB: if you return the strlen(src), on unterminated src fields, it could overrun */
 	/* We don't return strlen(src), cause we want to take extra precautions against unterminated src fields, and we don't care about truncation. */
 }
-
-int split(char *src, char *delim, struct split_string *dst, int split_string_size)
-{
-	int i;
-	char *p = src;
-
-	LOGINFO("Splitting: [%s]\n", src);
-
-	if (strlen(src) >= BUFFER_SIZE) {
-		LOGERR("Error with split, strlen(src) >= BUFFER_SIZE\n");
-		return 0;
-	}
-
-	for (i = 0; i < split_string_size; i++) {
-		char *t = strpbrk(p, delim);
-		if (t) {
-			my_strlcpy(dst[i].str, p, t - p + 1); // length = t - p ( + 1 for null terminator)
-			LOGINFO("Split: [%s]\n", dst[i].str);
-			p = t + 1;
-		}
-		else {
-			my_strlcpy(dst[i].str, p, strlen(p) + 1); // copy till the end of the string p, since it's the final round. (+1 for null terminator)
-			LOGINFO("Final split: [%s]\n", dst[i].str);
-			i++;
-			break;
-		}
-	}
-
-	return i;
-}
-
 
 char *strip_newline(char *s)
 {
@@ -133,38 +89,38 @@ void child(int fd)
 
 	if (fgets(buf, sizeof(buf), fp_in)) {
 		strip_newline(buf);
-		LOG("Received (first line): %s\n", buf);
+		printf("Received: %s\n", buf);
 		{
-			struct split_string first_pass[MAX_SPLITS];
-			int first_pass_splits = split(buf, " ", first_pass, MAX_SPLITS);
+			char *t = strtok(buf, " "); /* strtok 1st time */
 
-			LOGINFO("First pass: Splits = %d\n", first_pass_splits);
-
-			if (first_pass_splits == 3) {
-				if (strcmp(first_pass[0].str, "GET") == 0) {
-					printf("Found GET!\n");
-				}
-
-				struct split_string second_pass[MAX_SPLITS];
-				int second_pass_splits = split(first_pass[1].str, "?", second_pass, MAX_SPLITS);
-
-				LOGINFO("Second pass: Splits = %d\n", second_pass_splits);
-
-				if (second_pass_splits > 0) {
-					if ((strcmp(second_pass[0].str, "/") == 0) || (strcmp(second_pass[0].str, "/index.htm") == 0) || (strcmp(second_pass[0].str, "/index.html") == 0)) {
-						if ((strcmp(first_pass[2].str, "HTTP/1.1") == 0) || (strcmp(first_pass[2].str, "HTTP/1.0") == 0)) {
-							LOG("Found HTTP request for index.html\n");
+			if (t && (strcmp(t, "GET") == 0)) {
+				printf("Found GET!\n");
+				t = strtok(NULL, " "); /* strtok 2nd time */
+				if (t) {
+					char d[BUFFER_SIZE], *p;
+					/* need a copy of 't' so that we can eliminate the question mark and compare, without altering the token 't' in strtok */
+					my_strlcpy(d, t, sizeof(d)); /* should be safe regardless, since we're using the same buffer sizes */
+					p = strchr(d, '?');
+					if (p) *p = '\0';
+					if ((strcmp(d, "/") == 0) || (strcmp(d, "/index.htm") == 0) || (strcmp(d, "/index.html") == 0)) {
+						t = strtok(NULL, " "); /* strtok 3rd time */
+						if (t && 
+							(
+								(strcmp(t, "HTTP/1.1") == 0) 
+							|| 
+								(strcmp(t, "HTTP/1.0") == 0)
+							)
+						) {
+							printf("Found HTTP request for index.html\n");
 							received_get_request_for_index_html = 1;
 						}
 					}
 					else {
-						my_strlcpy(target_file, second_pass[0].str, sizeof(target_file));
-						LOG("Requesting file: %s\n", target_file);
+						p = strchr(d, ' ');
+						if (p) *p = '\0';
+						my_strlcpy(target_file, d, sizeof(target_file));
+						printf("Requesting file: %s\n", target_file);
 						received_get_request_for_target_file = 1;
-					}
-
-					for (int i = 1; i < second_pass_splits; i++) {
-						LOGINFO("Second pass split[%d]: ?%s\n", i, second_pass[i].str);	// we include the question mark -- to show that it was a URL parameter, since split() removes delimiters.
 					}
 				}
 			}
@@ -173,13 +129,13 @@ void child(int fd)
 
 	while (fgets(buf, sizeof(buf), fp_in)) {
 		strip_newline(buf);
-		LOG("Received (subsequent lines): %s\n", buf);
+		printf("Received: %s\n", buf);
 
 		if (strlen(buf) == 0)
 			break;
 	}
 
-	LOGINFO("Sending...\n");
+	printf("Sending...\n");
 
 	if (received_get_request_for_index_html) {
 		fp = fopen("index.html", "rb");
@@ -235,7 +191,7 @@ void child(int fd)
 
 
 close_fd:
-	LOGINFO("Closing fd...\n");
+	printf("Closing fd...\n");
 
 	fclose(fp_in);
 	fclose(fp_out);
@@ -257,9 +213,6 @@ int main(int argc, char **argv)
 		printf("Syntax: <listen port>\n");
 		exit(1);
 	}
-
-	time_t now = time(NULL);
-	LOG("Starting server... [%s]\n", strip_newline(ctime(&now)));
 
 	errno = 0;
 	p_pwd = getpwnam(SETUID_TO_USER);
@@ -298,8 +251,7 @@ int main(int argc, char **argv)
 		fd = accept(server_fd, (void *) &server, &r);
 		if (fd < 0) { perror("accept"); exit(1); }
 
-		now = time(NULL);
-		LOG("Connected IP: %s [%s]\n", inet_ntoa(server.sin_addr), strip_newline(ctime(&now)));
+		printf("Connected IP: %s\n", inet_ntoa(server.sin_addr));
 
 #ifndef NO_FORK
 		pid = fork();
