@@ -312,7 +312,9 @@ int main(int argc, char **argv)
 
 		// child
 		if (pid == 0) {
+			alarm(10); // allow 10 seconds before terminating the connection / child process.
 			child(fd);
+			alarm(0);
 			exit(0);
 		}
 		// parent
