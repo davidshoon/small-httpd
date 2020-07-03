@@ -8,6 +8,13 @@
 	Licensed under GNU GPLv3.
 
 	This program chroots and drops privileges (setuid()) after listening to the port.
+
+	Also has "stack canary" protection, useful for platforms that don't have this. 
+	This should prevent stack buffer overflow attacks.
+
+	This program avoids using the heap. If you want to change this code to using heap (malloc, etc)
+	I would suggest that you wrap malloc to use mmap(), and mprotect() the boundary pages so that
+	it triggers a SEGFAULT signal when overrun.
 */
 
 /* Set chroot to current directory, otherwise must chdir() to directory as well (not done) */
@@ -23,6 +30,17 @@
 #define LOGERR(x, ...) printf("ERROR: " x, ##__VA_ARGS__)
 #define LOGINFO(x, ...) printf("INFO: " x, ##__VA_ARGS__)
 #define LOG printf
+
+#define CANARY_PROTECTION
+
+#ifdef CANARY_PROTECTION
+int main_canary = 0;
+	#define ENTER int canary = main_canary
+	#define RETURN(x) if (canary == main_canary) return x; else abort()
+#else
+	#define ENTER
+	#define RETURN(x) return x
+#endif
 
 // #define NO_FORK
 
@@ -58,6 +76,7 @@ struct split_string
 
 void my_strlcpy(char *dest, const char *src, int len)
 {
+	ENTER;
 	int i;
 
 	for (i = 0; i < len - 1; i++) {
@@ -69,7 +88,7 @@ void my_strlcpy(char *dest, const char *src, int len)
 
 	dest[i] = '\0';
 
-	return;
+	RETURN();
 
 	/* NB: if you return the strlen(src), on unterminated src fields, it could overrun */
 	/* We don't return strlen(src), cause we want to take extra precautions against unterminated src fields, and we don't care about truncation. */
@@ -77,6 +96,7 @@ void my_strlcpy(char *dest, const char *src, int len)
 
 int split(char *src, char *delim, struct split_string *dst, int split_string_size)
 {
+	ENTER;
 	int i;
 	char *p = src;
 
@@ -84,7 +104,7 @@ int split(char *src, char *delim, struct split_string *dst, int split_string_siz
 
 	if (strlen(src) >= BUFFER_SIZE) {
 		LOGERR("Error with split, strlen(src) >= BUFFER_SIZE\n");
-		return 0;
+		RETURN(0);
 	}
 
 	for (i = 0; i < split_string_size; i++) {
@@ -102,19 +122,21 @@ int split(char *src, char *delim, struct split_string *dst, int split_string_siz
 		}
 	}
 
-	return i;
+	RETURN(i);
 }
 
 
 char *strip_newline(char *s)
 {
+	ENTER;
 	char *p = strpbrk(s, "\r\n");
 	if (p) *p = '\0';
-	return s;
+	RETURN(s);
 }
 
 void child(int fd)
 {
+	ENTER;
 	FILE *fp_in, *fp_out;
 	char buf[BUFFER_SIZE];
 	int received_get_request_for_index_html = 0;
@@ -127,7 +149,7 @@ void child(int fd)
 
 	if (!fp_in || !fp_out) {
 		perror("fdopen");
-		return;
+		RETURN();
 	}
 
 	if (fgets(buf, sizeof(buf), fp_in)) {
@@ -241,7 +263,7 @@ close_fd:
 	fclose(fp_in);
 	fclose(fp_out);
 	close(fd);
-	return;
+	RETURN();
 }
 
 int main(int argc, char **argv)
@@ -253,6 +275,8 @@ int main(int argc, char **argv)
 	pid_t pid;
 	int port;
 	struct passwd *p_pwd;
+
+	srand(time(NULL));
 
 	if (argc < 2) {
 		printf("Syntax: <listen port>\n");
@@ -312,6 +336,9 @@ int main(int argc, char **argv)
 
 		// child
 		if (pid == 0) {
+#ifdef CANARY_PROTECTION
+			main_canary = rand();
+#endif
 			alarm(10); // allow 10 seconds before terminating the connection / child process.
 			child(fd);
 			alarm(0);
