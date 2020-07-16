@@ -276,6 +276,8 @@ void child(int fd)
 		}
 	}
 
+	fflush(stdout); // flush all logs before exiting child process. Possible bug on OpenBSD not flushing buffers on exit(). Works fine on Linux.
+
 	fclose(fp_in);
 	fclose(fp_out);
 	close(fd);
