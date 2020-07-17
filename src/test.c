@@ -204,7 +204,7 @@ void child(int fd)
 	char buf[BUFFER_SIZE];
 	char target_file[BUFFER_SIZE];
 	int i, r;
-	int http_version;
+	int http_version = -1;
 	struct split_string first_pass[MAX_SPLITS];
 	int first_pass_splits;
 	struct split_string second_pass[MAX_SPLITS];
@@ -232,9 +232,6 @@ void child(int fd)
 			}
 			else if (strcmp(first_pass[2].str, "HTTP/1.0") == 0) {
 				http_version = 0;
-			}
-			else {
-				http_version = -1;
 			}
 
 			second_pass_splits = split(first_pass[1].str, "?", second_pass, MAX_SPLITS);
