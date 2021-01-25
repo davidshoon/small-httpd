@@ -330,9 +330,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (listen(server_fd, 5) < 0) { perror("listen"); exit(1); }
-
 	if (setuid(p_pwd->pw_uid) < 0) { perror("setuid"); exit(1); }
+
+	if (listen(server_fd, 5) < 0) { perror("listen"); exit(1); }
 
 	while (1) {
 		socklen_t r = sizeof(server);
