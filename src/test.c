@@ -107,11 +107,11 @@ void my_strlcpy(char *dest, const char *src, int len)
 
 // split - splits a "src" string by delimiter "delim", with destination "dst" and total number of "split words" defined by "split_string_size".
 // returns number of "split words"
-int split(char *src, char *delim, struct split_string *dst, int split_string_size)
+int split(const char *src, char *delim, struct split_string *dst, int split_string_size)
 {
 	ENTER;
 	int i;
-	char *p = src;
+	const char *p = src;
 
 	LOGINFO("Splitting: [%s]\n", src);
 
@@ -121,7 +121,7 @@ int split(char *src, char *delim, struct split_string *dst, int split_string_siz
 	}
 
 	for (i = 0; i < split_string_size; i++) {
-		char *t = strpbrk(p, delim);
+		const char *t = strpbrk(p, delim);
 		if (t) {
 			my_strlcpy(dst[i].str, p, t - p + 1); // length = t - p ( + 1 for null terminator)
 			LOGINFO("Split: [%s]\n", dst[i].str);
